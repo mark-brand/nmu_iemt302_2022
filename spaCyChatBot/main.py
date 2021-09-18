@@ -3,8 +3,7 @@ import sys
 import random
 import re
 import spacy
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -34,8 +33,6 @@ class SentenceTyper(spacy.matcher.Matcher):
 
     def __call__(self, *args, **kwargs):
         """returns the sequence of token ids which constitute the verb phrase"""
-        # return super().__call__(*args, **kwargs)
-
         matches = super().__call__(*args, **kwargs)
         if matches:
             match_id, start, end = matches[0]
