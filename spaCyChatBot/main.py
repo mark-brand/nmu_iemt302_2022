@@ -11,31 +11,31 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 class SentenceTyper(spacy.matcher.Matcher):
     """Derived matcher meant for determining the sentence type"""
+
     def __init__(self, vocab):
         super().__init__(vocab)
         # Interrogative (question)
-        self.add("WH-QUESTION", None, [{"SENT_START": True, "TAG": {"IN": ["WDT", "WP", "WP$", "WRB"]}}])
-        self.add("YN-QUESTION", None,
-                 [{"SENT_START": True, "TAG": "MD"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}],
-                 [{"SENT_START": True, "POS": "VERB"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}, {"POS": "VERB"}])
+        self.add("WH-QUESTION", [[{"SENT_START": True, "TAG": {"IN": ["WDT", "WP", "WP$", "WRB"]}}]])
+        self.add("YN-QUESTION",
+                 [[{"SENT_START": True, "TAG": "MD"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}],
+                 [{"SENT_START": True, "POS": "VERB"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}, {"POS": "VERB"}]])
         # Imperative (instructions)
-        self.add("INSTRUCTION", None,
-                 [{"SENT_START": True, "TAG": "VB"}],
-                 [{"SENT_START": True, "LOWER": {"IN": ["please", "kindly"]}}, {"TAG": "VB"}])
+        self.add("INSTRUCTION",
+                 [[{"SENT_START": True, "TAG": "VB"}],
+                 [{"SENT_START": True, "LOWER": {"IN": ["please", "kindly"]}}, {"TAG": "VB"}]])
         # Wish request
-        self.add("WISH", None,
-                 [{"SENT_START": True, "TAG": "PRP"}, {"TAG": "MD"},
+        self.add("WISH",
+                 [[{"SENT_START": True, "TAG": "PRP"}, {"TAG": "MD"},
                   {"POS": "VERB", "LEMMA": {"IN": ["love", "like", "appreciate"]}}],  # e.g. I'd like...
-                 [{"SENT_START": True, "TAG": "PRP"}, {"POS": "VERB", "LEMMA": {"IN": ["want", "need", "require"]}}])
+                 [{"SENT_START": True, "TAG": "PRP"}, {"POS": "VERB", "LEMMA": {"IN": ["want", "need", "require"]}}]])
         # Exclamatory (emotive)
         # Declarative (statements)
-
 
     def __call__(self, *args, **kwargs):
         """returns the sequence of token ids which constitute the verb phrase"""
         matches = super().__call__(*args, **kwargs)
         if matches:
-            match_id, start, end = matches[0]
+            match_id, _, _ = matches[0]
             if match_id == self.vocab["WH-QUESTION"]:
                 return wh_question_handler
             elif match_id == self.vocab["YN-QUESTION"]:
@@ -50,17 +50,18 @@ class SentenceTyper(spacy.matcher.Matcher):
             logger.debug(f"NOTE: SentenceTyper actually found {len(matches)} matches.")
 
 
-class VerbFinder(spacy.matcher.DependencyTreeMatcher):
+class VerbFinder(spacy.matcher.DependencyMatcher):
     """Derived matcher meant for finding verb phrases"""
+
     def __init__(self, vocab):
         super().__init__(vocab)
-        self.add("VERBPHRASE", None,
-                 [{'PATTERN': {'DEP': 'ROOT'}, 'SPEC': {'NODE_NAME': 'node0'}},
-                  {'PATTERN': {'POS': 'PART'}, 'SPEC': {'NBOR_NAME': 'node0', 'NBOR_RELOP': '<<', 'NODE_NAME': 'node1'}},
-                  {'PATTERN': {'POS': 'VERB'}, 'SPEC': {'NBOR_NAME': 'node0', 'NBOR_RELOP': '>', 'NODE_NAME': 'node2'}}],
-                 [{'PATTERN': {'DEP': 'ROOT'}, 'SPEC': {'NODE_NAME': 'node0'}},
-                  {'PATTERN': {'TAG': 'MD'}, 'SPEC': {'NBOR_NAME': 'node0', 'NBOR_RELOP': '>', 'NODE_NAME': 'node1'}}],
-                 [{'PATTERN': {'DEP': 'ROOT'}, 'SPEC': {'NODE_NAME': 'node0'}}])
+        self.add("VERBPHRASE",
+                 [[{"RIGHT_ID": "node0", "RIGHT_ATTRS": {"DEP": "ROOT"}},
+                   {"LEFT_ID": "node0", "REL_OP": "<<", "RIGHT_ID": "node1", "RIGHT_ATTRS": {"POS": "PART"}},
+                   {"LEFT_ID": "node0", "REL_OP": ">", "RIGHT_ID": "node2", "RIGHT_ATTRS": {"POS": "VERB"}}],
+                  [{"RIGHT_ID": "node0", "RIGHT_ATTRS": {"DEP": "ROOT"}},
+                   {"LEFT_ID": "node0", "REL_OP": ">", "RIGHT_ID": "node1", "RIGHT_ATTRS": {"TAG": "MD"}}],
+                  [{"RIGHT_ID": "node0", "RIGHT_ATTRS": {"DEP": "ROOT"}}]])
 
     def __call__(self, *args, **kwargs):
         """returns the sequence of token ids which constitute the verb phrase"""
@@ -110,8 +111,8 @@ def wh_question_handler(nlp, sentence, verbs_idxs):
     reply = re.sub(povs_c, lambda match: povs.get(match.group()), " ".join(reply))
     reply = random.choice(["I don't know ", "I can't say "]) + reply
     reply += random.choice([", but I'll try to find out for you. Please check in with me again later.",
-        ", but perhaps that's something I'd be able to find out for you. Remind me, if I forget.",
-        ". I'll see if I can find out, though. Ask me again sometime."])
+                            ", but perhaps that's something I'd be able to find out for you. Remind me, if I forget.",
+                            ". I'll see if I can find out, though. Ask me again sometime."])
     return reply
 
 
@@ -213,7 +214,7 @@ def help(update, context):
 
 def main():
     """the bot's main message loop is set up and run from here"""
-    updater = Updater('YOUR_SECRET_API_TOKEN')
+    updater = Updater('1984453469:AAFJsvtfQFpOxL0HVRYtOp24drsCB7JxR4U')
     dispatch = updater.dispatcher
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler(['start', 'order'], start)],
@@ -231,4 +232,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
