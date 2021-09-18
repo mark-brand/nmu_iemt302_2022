@@ -1,33 +1,34 @@
 import logging
+import os
 import sys
 import random
 import re
 import spacy
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-
+load_dotenv()
 
 class SentenceTyper(spacy.matcher.Matcher):
     """Derived matcher meant for determining the sentence type"""
-
     def __init__(self, vocab):
         super().__init__(vocab)
         # Interrogative (question)
-        self.add("WH-QUESTION", [[{"SENT_START": True, "TAG": {"IN": ["WDT", "WP", "WP$", "WRB"]}}]])
+        self.add("WH-QUESTION", [[{"IS_SENT_START": True, "TAG": {"IN": ["WDT", "WP", "WP$", "WRB"]}}]])
         self.add("YN-QUESTION",
-                 [[{"SENT_START": True, "TAG": "MD"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}],
-                 [{"SENT_START": True, "POS": "VERB"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}, {"POS": "VERB"}]])
+                 [[{"IS_SENT_START": True, "TAG": "MD"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}],
+                 [{"IS_SENT_START": True, "POS": "VERB"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}, {"POS": "VERB"}]])
         # Imperative (instructions)
         self.add("INSTRUCTION",
-                 [[{"SENT_START": True, "TAG": "VB"}],
-                 [{"SENT_START": True, "LOWER": {"IN": ["please", "kindly"]}}, {"TAG": "VB"}]])
+                 [[{"IS_SENT_START": True, "TAG": "VB"}],
+                 [{"IS_SENT_START": True, "LOWER": {"IN": ["please", "kindly"]}}, {"TAG": "VB"}]])
         # Wish request
         self.add("WISH",
-                 [[{"SENT_START": True, "TAG": "PRP"}, {"TAG": "MD"},
+                 [[{"IS_SENT_START": True, "TAG": "PRP"}, {"TAG": "MD"},
                   {"POS": "VERB", "LEMMA": {"IN": ["love", "like", "appreciate"]}}],  # e.g. I'd like...
-                 [{"SENT_START": True, "TAG": "PRP"}, {"POS": "VERB", "LEMMA": {"IN": ["want", "need", "require"]}}]])
+                 [{"IS_SENT_START": True, "TAG": "PRP"}, {"POS": "VERB", "LEMMA": {"IN": ["want", "need", "require"]}}]])
         # Exclamatory (emotive)
         # Declarative (statements)
 
@@ -52,7 +53,6 @@ class SentenceTyper(spacy.matcher.Matcher):
 
 class VerbFinder(spacy.matcher.DependencyMatcher):
     """Derived matcher meant for finding verb phrases"""
-
     def __init__(self, vocab):
         super().__init__(vocab)
         self.add("VERBPHRASE",
@@ -214,7 +214,7 @@ def help(update, context):
 
 def main():
     """the bot's main message loop is set up and run from here"""
-    updater = Updater('1984453469:AAFJsvtfQFpOxL0HVRYtOp24drsCB7JxR4U')
+    updater = Updater(os.getenv('API_TOKEN'))
     dispatch = updater.dispatcher
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler(['start', 'order'], start)],
