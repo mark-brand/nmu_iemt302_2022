@@ -19,21 +19,21 @@ class SentenceTyper(spacy.matcher.Matcher):
         self.add("WH-QUESTION", [[{"IS_SENT_START": True, "TAG": {"IN": ["WDT", "WP", "WP$", "WRB"]}}]])
         self.add("YN-QUESTION",
                  [[{"IS_SENT_START": True, "TAG": "MD"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}],
-                 [{"IS_SENT_START": True, "POS": "VERB"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}, {"POS": "VERB"}]])
+                  [{"IS_SENT_START": True, "POS": "VERB"}, {"POS": {"IN": ["PRON", "PROPN", "DET"]}}, {"POS": "VERB"}]])
         # Imperative (instructions)
         self.add("INSTRUCTION",
                  [[{"IS_SENT_START": True, "TAG": "VB"}],
-                 [{"IS_SENT_START": True, "LOWER": {"IN": ["please", "kindly"]}}, {"TAG": "VB"}]])
+                  [{"IS_SENT_START": True, "LOWER": {"IN": ["please", "kindly"]}}, {"TAG": "VB"}]])
         # Wish request
         self.add("WISH",
                  [[{"IS_SENT_START": True, "TAG": "PRP"}, {"TAG": "MD"},
                   {"POS": "VERB", "LEMMA": {"IN": ["love", "like", "appreciate"]}}],  # e.g. I'd like...
-                 [{"IS_SENT_START": True, "TAG": "PRP"}, {"POS": "VERB", "LEMMA": {"IN": ["want", "need", "require"]}}]])
+                  [{"IS_SENT_START": True, "TAG": "PRP"}, {"POS": "VERB", "LEMMA": {"IN": ["want", "need", "require"]}}]])
         # Exclamatory (emotive)
         # Declarative (statements)
 
     def __call__(self, *args, **kwargs):
-        """returns the sequence of token ids which constitute the verb phrase"""
+        """inspects the first match, and returns the appropriate sentence type handler"""
         matches = super().__call__(*args, **kwargs)
         if matches:
             match_id, _, _ = matches[0]
@@ -55,13 +55,14 @@ class VerbFinder(spacy.matcher.DependencyMatcher):
     """Derived matcher meant for finding verb phrases"""
     def __init__(self, vocab):
         super().__init__(vocab)
-        self.add("VERBPHRASE",
-                 [[{"RIGHT_ID": "node0", "RIGHT_ATTRS": {"DEP": "ROOT"}},
-                   {"LEFT_ID": "node0", "REL_OP": "<<", "RIGHT_ID": "node1", "RIGHT_ATTRS": {"POS": "PART"}},
-                   {"LEFT_ID": "node0", "REL_OP": ">", "RIGHT_ID": "node2", "RIGHT_ATTRS": {"POS": "VERB"}}],
-                  [{"RIGHT_ID": "node0", "RIGHT_ATTRS": {"DEP": "ROOT"}},
-                   {"LEFT_ID": "node0", "REL_OP": ">", "RIGHT_ID": "node1", "RIGHT_ATTRS": {"TAG": "MD"}}],
-                  [{"RIGHT_ID": "node0", "RIGHT_ATTRS": {"DEP": "ROOT"}}]])
+        self.add("VERBPHRASE", [
+            [{"RIGHT_ID": "root", "RIGHT_ATTRS": {"DEP": "ROOT"}},
+             {"LEFT_ID": "root", "REL_OP": ">", "RIGHT_ID": "auxiliary", "RIGHT_ATTRS": {"TAG": "VB"}},
+             {"LEFT_ID": "root", "REL_OP": ">", "RIGHT_ID": "modal", "RIGHT_ATTRS": {"TAG": "MD"}}],
+            [{"RIGHT_ID": "root", "RIGHT_ATTRS": {"DEP": "ROOT"}},
+             {"LEFT_ID": "root", "REL_OP": ">", "RIGHT_ID": "auxiliary", "RIGHT_ATTRS": {"POS": "AUX"}}],
+            [{"RIGHT_ID": "root", "RIGHT_ATTRS": {"DEP": "ROOT"}}]
+        ])
 
     def __call__(self, *args, **kwargs):
         """returns the sequence of token ids which constitute the verb phrase"""
@@ -71,7 +72,7 @@ class VerbFinder(spacy.matcher.DependencyMatcher):
                 logging.debug(f"NOTE: VerbFinder actually found {len(verbmatches)} matches.")
                 for verbmatch in verbmatches:
                     logging.debug(verbmatch)
-            match_id, token_idxs = verbmatches[0]
+            _, token_idxs = verbmatches[0]
             return sorted(token_idxs)
 
 
@@ -100,14 +101,16 @@ povs_c = re.compile(r'\b({})\b'.format('|'.join(re.escape(pov) for pov in povs))
 
 def wh_question_handler(nlp, sentence, verbs_idxs):
     """Requires a qualitative answer. For now, very similar to yn_question_handler"""
-    logging.debug("INVOKING WH-QUESTION HANDLER")
+    logging.debug(f"INVOKING WH-QUESTION HANDLER {verbs_idxs}")
     reply = []
     reply.append(sentence[0].text.lower())  # by definition, the first word is a wh-word
     part = [chunk.text for chunk in sentence.noun_chunks if chunk.root.dep_ == 'nsubj']
-    if part: reply.append(part[0])
+    if part:
+        reply.append(part[0])
     reply.append(" ".join([sentence[i].text.lower() for i in verbs_idxs]))
     part = [chunk.text for chunk in sentence.noun_chunks if chunk.root.dep_ == 'dobj']
-    if part: reply.append(part[0])
+    if part:
+        reply.append(part[0])
     reply = re.sub(povs_c, lambda match: povs.get(match.group()), " ".join(reply))
     reply = random.choice(["I don't know ", "I can't say "]) + reply
     reply += random.choice([", but I'll try to find out for you. Please check in with me again later.",
