@@ -4,7 +4,7 @@ import sys
 import random
 import re
 import spacy
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
@@ -182,7 +182,7 @@ def generic_handler(nlp, sentence, verbs_idxs):
     return reply
 
 
-def banter(update, context):
+async def banter(update, context):
     nlp = spacy.load('en_core_web_sm')
     doc = nlp(update.message.text)
     sentencetyper = SentenceTyper(nlp.vocab)
@@ -193,44 +193,44 @@ def banter(update, context):
         verbs_idxs = verbfinder(sentence.as_doc())
         reply += (sentencetyper(sentence.as_doc()))(nlp, sentence, verbs_idxs)
 
-    update.message.reply_text(reply)
+    await update.message.reply_text(reply)
     return
 
 
-def start(update, context):
+async def start(update, context):
     """announce yourself in a way that suggests the kind of interaction expected"""
-    update.message.reply_text("Hi! I am your bot. How may I be of service?")
+    await update.message.reply_text("Hi! I am your bot. How may I be of service?")
     return 'BANTER'
 
 
-def cancel(update, context):
+async def cancel(update, context):
     """gracefully exit the conversation"""
-    update.message.reply_text("Thanks for the chat. I'll be off then!")
+    await update.message.reply_text("Thanks for the chat. I'll be off then!")
     return ConversationHandler.END
 
 
-def help(update, context):
+async def help(update, context):
     """what situations give rise to a request such as this?"""
-    update.message.reply_text("I strongly suggest that you read the manual.")
+    await update.message.reply_text("I strongly suggest that you read the manual.")
     return
 
 
 def main():
     """the bot's main message loop is set up and run from here"""
-    updater = Updater(os.getenv('API_TOKEN'))
-    dispatch = updater.dispatcher
+    application = Application.builder().token(os.getenv('API_TOKEN')).build()
+    # updater = Updater(os.getenv('API_TOKEN'))
+    # dispatch = updater.dispatcher
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler(['start', 'order'], start)],
         states={
             # a dict of states needs to be inserted here
-            'BANTER': [MessageHandler(Filters.text & ~Filters.command, banter)],
+            'BANTER': [MessageHandler(filters.TEXT & ~filters.COMMAND, banter)],
         },
         fallbacks=[CommandHandler(['cancel', 'stop', 'exit'], cancel),
                    CommandHandler('help', help)]
     )
-    dispatch.add_handler(conv_handler)
-    updater.start_polling()
-    updater.idle()
+    application.add_handler(conv_handler)
+    application.run_polling()
 
 
 if __name__ == '__main__':
