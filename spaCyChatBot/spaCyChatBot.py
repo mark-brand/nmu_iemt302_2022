@@ -218,8 +218,6 @@ async def help(update, context):
 def main():
     """the bot's main message loop is set up and run from here"""
     application = Application.builder().token(os.getenv('API_TOKEN')).build()
-    # updater = Updater(os.getenv('API_TOKEN'))
-    # dispatch = updater.dispatcher
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler(['start', 'order'], start)],
         states={
