@@ -6,6 +6,9 @@ import re
 import spacy
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler
 from dotenv import load_dotenv
+from enum import Enum
+
+State = Enum('State', ['BANTER'])
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -200,7 +203,7 @@ async def banter(update, context):
 async def start(update, context):
     """announce yourself in a way that suggests the kind of interaction expected"""
     await update.message.reply_text("Hi! I am your bot. How may I be of service?")
-    return 'BANTER'
+    return State.BANTER
 
 
 async def cancel(update, context):
@@ -222,7 +225,7 @@ def main():
         entry_points=[CommandHandler(['start', 'order'], start)],
         states={
             # a dict of states needs to be inserted here
-            'BANTER': [MessageHandler(filters.TEXT & ~filters.COMMAND, banter)],
+            State.BANTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, banter)],
         },
         fallbacks=[CommandHandler(['cancel', 'stop', 'exit'], cancel),
                    CommandHandler('help', help)]
